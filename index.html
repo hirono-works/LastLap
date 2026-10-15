@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LastLap — Fast, Intensive Exam Memorization</title>
+  <meta name="description" content="A mobile-first web app for rapid, high-retention memorization and adaptive exam study scheduling.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-light">
+  <div id="app" class="app-container">
+    <!-- Main Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand-logo">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span class="brand-name">LastLap</span>
+        </div>
+        <span class="brand-tagline">Intensive Exam Cramming</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-theme-toggle" class="icon-btn" aria-label="Toggle Theme" title="Toggle Light/Dark Theme">
+          <span class="icon-moon">🌙</span>
+          <span class="icon-sun">☀️</span>
+        </button>
+        <button id="btn-backup-open" class="btn btn-secondary btn-sm" aria-label="Backup & Settings" title="Backup & Restore">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span>Data</span>
+        </button>
+        <button id="btn-new-exam-top" class="btn btn-primary btn-sm" aria-label="Add Exam">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>New Exam</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Section 3.1: Exam Calendar -->
+      <section class="section calendar-section" id="section-calendar" aria-labelledby="heading-calendar">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2 id="heading-calendar" class="section-title">Exam Calendar & Timelines</h2>
+            <p class="section-desc">Track test dates and adaptive study start milestones</p>
+          </div>
+          <div class="calendar-controls">
+            <button id="btn-cal-prev" class="icon-btn-subtle" aria-label="Previous Month">&lt;</button>
+            <span id="cal-month-label" class="cal-month-title">October 2026</span>
+            <button id="btn-cal-next" class="icon-btn-subtle" aria-label="Next Month">&gt;</button>
+          </div>
+        </div>
+
+        <div class="calendar-card glass-panel">
+          <div class="calendar-grid-header">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div id="calendar-days" class="calendar-grid-days">
+            <!-- Dynamically populated days -->
+          </div>
+          <div class="calendar-legend">
+            <span class="legend-item"><span class="legend-dot dot-exam"></span> Exam Day</span>
+            <span class="legend-item"><span class="legend-dot dot-start"></span> Recommended Start</span>
+            <span class="legend-item"><span class="legend-dot dot-today"></span> Today</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3.2: Today's Tasks -->
+      <section class="section today-section" id="section-today" aria-labelledby="heading-today">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2 id="heading-today" class="section-title">Today's Tasks</h2>
+            <p class="section-desc">Prioritized study roadmap based on your exam dates & mastery</p>
+          </div>
+          <span id="today-date-badge" class="badge badge-accent">Today</span>
+        </div>
+
+        <div id="today-tasks-container" class="tasks-container">
+          <!-- Populated by JS -->
+          <div class="empty-state glass-panel">
+            <p>No exams registered yet. Create your first exam to generate your personalized study plan.</p>
+            <button id="btn-empty-add-exam" class="btn btn-primary btn-sm">Create Exam</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3.3: Exam Sections -->
+      <section class="section exams-section" id="section-exams" aria-labelledby="heading-exams">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2 id="heading-exams" class="section-title">My Registered Exams</h2>
+            <p class="section-desc">Manage materials, advance phases, and target weak cards</p>
+          </div>
+          <button id="btn-new-exam-body" class="btn btn-outline btn-sm">
+            <span>+ Add Exam</span>
+          </button>
+        </div>
+
+        <div id="exams-container" class="exams-grid">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </main>
+
+    <!-- App Footer -->
+    <footer class="app-footer">
+      <p>LastLap — Purpose-built for fast, short-term memorization. All data stored securely in browser IndexedDB.</p>
+      <div class="footer-links">
+        <button id="btn-footer-backup" class="link-btn">Backup / Restore</button>
+        <span>•</span>
+        <span id="data-status-text">Local Storage Active</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ================= MODALS & OVERLAYS ================= -->
+
+  <!-- 1. Exam Create/Edit Modal -->
+  <div id="modal-exam" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-exam-title">
+    <div class="modal-dialog glass-panel">
+      <div class="modal-header">
+        <h3 id="modal-exam-title" class="modal-title">Register Exam</h3>
+        <button class="modal-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+      <form id="form-exam" class="modal-form">
+        <input type="hidden" id="exam-id" value="">
+        
+        <div class="form-group">
+          <label for="exam-name" class="form-label">Exam Name *</label>
+          <input type="text" id="exam-name" class="form-input" placeholder="e.g. Biology Midterm, Bar Exam Part 1" required>
+        </div>
+
+        <div class="form-group">
+          <label for="exam-date" class="form-label">Exam Date *</label>
+          <input type="date" id="exam-date" class="form-input" required>
+        </div>
+
+        <div class="form-divider">
+          <span>Study Start Date Estimation</span>
+        </div>
+
+        <div class="schedule-estimator-box">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="exam-num-cards" class="form-label">Estimated Cards</label>
+              <input type="number" id="exam-num-cards" class="form-input" min="1" value="60">
+              <span class="form-hint">Auto-updates after importing</span>
+            </div>
+            <div class="form-group">
+              <label for="exam-daily-time" class="form-label">Daily Study Time (mins)</label>
+              <input type="number" id="exam-daily-time" class="form-input" min="5" max="720" value="30">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="exam-mastery-level" class="form-label">Current Mastery Level</label>
+            <select id="exam-mastery-level" class="form-select">
+              <option value="NOT_STUDIED">Not studied (95% new)</option>
+              <option value="SLIGHTLY_LEARNED">Slightly learned (85% new)</option>
+              <option value="HALF_LEARNED">Half learned (50% new)</option>
+              <option value="MOSTLY_LEARNED">Mostly learned (20% new)</option>
+              <option value="ALMOST_EVERYTHING">Almost everything learned (5% new)</option>
+            </select>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="exam-sec-per-card" class="form-label">Avg Seconds / Card</label>
+              <input type="number" id="exam-sec-per-card" class="form-input" min="3" max="180" value="20">
+            </div>
+            <div class="form-group">
+              <label for="exam-review-allowance" class="form-label">Review Buffer (r)</label>
+              <select id="exam-review-allowance" class="form-select">
+                <option value="0.25">+25% allowance</option>
+                <option value="0.5" selected>+50% allowance (recommended)</option>
+                <option value="0.75">+75% for difficult material</option>
+                <option value="1.0">+100% heavy reinforcement</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Live Estimation Display -->
+          <div id="schedule-calc-preview" class="calc-preview-card">
+            <div class="calc-metric-row">
+              <span class="calc-metric-label">Estimated Total Study:</span>
+              <span id="preview-total-time" class="calc-metric-value">-- min</span>
+            </div>
+            <div class="calc-metric-row">
+              <span class="calc-metric-label">Required Study Days:</span>
+              <span id="preview-total-days" class="calc-metric-value">-- days</span>
+            </div>
+            <div class="calc-metric-row highlight-row">
+              <span class="calc-metric-label">Recommended Start Date:</span>
+              <span id="preview-start-date" class="calc-metric-value highlight-val">--</span>
+            </div>
+            <p id="preview-assumptions" class="calc-assumptions-note"></p>
+            <div id="preview-warning" class="calc-warning-box hidden"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+          <button type="submit" id="btn-save-exam" class="btn btn-primary">Save Exam</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Import Study Materials Modal -->
+  <div id="modal-import" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-import-title">
+    <div class="modal-dialog modal-lg glass-panel">
+      <div class="modal-header">
+        <div class="modal-header-titles">
+          <h3 id="modal-import-title" class="modal-title">Import Study Materials</h3>
+          <p id="import-exam-subtitle" class="modal-subtitle">For: Biology Midterm</p>
+        </div>
+        <button class="modal-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="import-content">
+        <!-- Step 1: File Selection -->
+        <div id="import-step-file" class="import-step">
+          <div class="drop-zone" id="file-drop-zone">
+            <svg class="drop-icon" viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p class="drop-primary">Choose a file or drag & drop here</p>
+            <p class="drop-secondary">Supports CSV (.csv), TSV (.tsv, .txt), and Anki plain-text notes (including Cloze deletions)</p>
+            <input type="file" id="file-input" class="file-input-hidden" accept=".csv,.tsv,.txt">
+            <button type="button" id="btn-choose-file" class="btn btn-primary btn-sm">Select File</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Mapping and Preview -->
+        <div id="import-step-mapping" class="import-step hidden">
+          <div class="import-toolbar">
+            <span id="import-file-info" class="badge badge-neutral">file.csv (50 rows)</span>
+            <label class="checkbox-label">
+              <input type="checkbox" id="chk-force-cloze">
+              <span>Enable Cloze Deletion parser</span>
+            </label>
+          </div>
+
+          <div class="mapping-grid">
+            <div class="form-group">
+              <label for="select-front-col" class="form-label">Front (Question / Prompt) *</label>
+              <select id="select-front-col" class="form-select"></select>
+            </div>
+            <div class="form-group" id="group-back-col">
+              <label for="select-back-col" class="form-label">Back (Answer) *</label>
+              <select id="select-back-col" class="form-select"></select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Supplementary Fields (Optional notes, examples, hints):</label>
+            <div id="supplementary-fields-list" class="checkbox-tags-group"></div>
+          </div>
+
+          <!-- Preview Table -->
+          <div class="preview-section">
+            <h4 class="preview-title">Parsed Data Preview (First 5 Rows)</h4>
+            <div class="preview-table-wrap">
+              <table id="import-preview-table" class="data-table">
+                <thead id="preview-table-head"></thead>
+                <tbody id="preview-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Resulting Cards Preview -->
+          <div class="preview-section">
+            <h4 class="preview-title">Sample Resulting Card Preview</h4>
+            <div id="sample-card-preview" class="sample-card glass-panel">
+              <div class="sample-front-box">
+                <span class="sample-label">Front:</span>
+                <div id="sample-front-text" class="sample-content">--</div>
+              </div>
+              <div class="sample-back-box">
+                <span class="sample-label">Back:</span>
+                <div id="sample-back-text" class="sample-content">--</div>
+              </div>
+              <div id="sample-supp-box" class="sample-supp-box hidden">
+                <span class="sample-label">Supplementary:</span>
+                <div id="sample-supp-text" class="sample-content"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import validation messages -->
+          <div id="import-alerts-box" class="import-alerts-box hidden"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-import-cancel" data-close-modal>Cancel</button>
+        <button type="button" class="btn btn-secondary hidden" id="btn-import-back">Back to File</button>
+        <button type="button" class="btn btn-primary hidden" id="btn-import-confirm">Confirm Import (<span id="import-count-badge">0</span> Cards)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Study Session Fullscreen View -->
+  <div id="study-view" class="study-overlay hidden" role="dialog" aria-modal="true">
+    <div class="study-container">
+      <!-- Top Bar -->
+      <div class="study-top-bar">
+        <div class="study-meta">
+          <span id="study-exam-title" class="study-title">Biology Midterm</span>
+          <span id="study-phase-badge" class="badge badge-accent">Phase 1: Diagnostic</span>
+        </div>
+        <div class="study-progress-container">
+          <div class="study-progress-bar">
+            <div id="study-progress-fill" class="progress-fill" style="width: 0%;"></div>
+          </div>
+          <span id="study-progress-text" class="study-count">1 / 50</span>
+        </div>
+        <button id="btn-study-exit" class="icon-btn-subtle" title="Exit Study Session" aria-label="Exit Session">&times;</button>
+      </div>
+
+      <!-- Flashcard Interactive Area -->
+      <div class="study-card-wrapper">
+        <div id="study-card-box" class="study-card glass-panel">
+          <div class="study-card-type-tag" id="study-card-type">Basic Card</div>
+          
+          <!-- Prompt / Front Section -->
+          <div class="study-card-front" id="study-card-front-content">
+            <div id="study-front-text" class="study-text-primary">Question goes here</div>
+          </div>
+
+          <!-- Supplementary Notes (Before or After answer) -->
+          <div id="study-card-supp-pre" class="study-card-supp hidden"></div>
+
+          <!-- Answer Section (Hidden until revealed) -->
+          <div id="study-card-back-wrapper" class="study-card-back hidden">
+            <hr class="card-divider">
+            <div class="study-label">Answer:</div>
+            <div id="study-back-text" class="study-text-answer">Answer goes here</div>
+            <div id="study-card-supp-post" class="study-card-supp hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control Actions -->
+      <div class="study-actions-bar">
+        <!-- Reveal Action -->
+        <div id="study-reveal-controls" class="reveal-controls">
+          <button id="btn-reveal-answer" class="btn btn-primary btn-lg action-btn-wide">
+            <span>Show Answer</span>
+            <span class="kbd-hint">[Space]</span>
+          </button>
+        </div>
+
+        <!-- Rating Actions (Phase 1, 2, 3 standard) -->
+        <div id="study-rating-controls" class="rating-controls hidden">
+          <button id="btn-rate-incorrect" class="btn btn-rate btn-rate-incorrect" data-result="incorrect">
+            <span class="rate-emoji">❌</span>
+            <span class="rate-title">Incorrect</span>
+            <span class="rate-subtitle">Could not recall</span>
+            <span class="kbd-hint">[1]</span>
+          </button>
+
+          <button id="btn-rate-uncertain" class="btn btn-rate btn-rate-uncertain" data-result="uncertain">
+            <span class="rate-emoji">⚠️</span>
+            <span class="rate-title">Uncertain</span>
+            <span class="rate-subtitle">Correct with doubt</span>
+            <span class="kbd-hint">[2]</span>
+          </button>
+
+          <button id="btn-rate-confident" class="btn btn-rate btn-rate-confident" data-result="confident">
+            <span class="rate-emoji">✅</span>
+            <span class="rate-title">Confident</span>
+            <span class="rate-subtitle">Instant recall</span>
+            <span class="kbd-hint">[3]</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Keyboard shortcuts legend for mobile & desktop -->
+      <div class="study-footer-hints">
+        <span>Keyboard shortcuts: Space to reveal answer, 1/2/3 to rate result, Esc to exit</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Session Completion Screen (Enforces Section 6.2 requirements) -->
+  <div id="modal-completion" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="completion-dialog glass-panel">
+      <!-- Animated background floating cards -->
+      <div class="completion-bg-float" id="completion-float-words"></div>
+
+      <div class="completion-header">
+        <div class="completion-badge-icon">🎉</div>
+        <h3 class="completion-title">Session Complete!</h3>
+        <p id="completion-subtitle" class="completion-subtitle">Great job on finishing this study run.</p>
+      </div>
+
+      <!-- Save Status indicator with verifiable persistence -->
+      <div id="completion-save-status" class="save-status-box status-saving">
+        <span class="save-spinner"></span>
+        <span id="save-status-text">Saving study progress to database...</span>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="completion-stats-grid">
+        <div class="stat-box">
+          <span class="stat-number stat-conf" id="comp-stat-confident">0</span>
+          <span class="stat-label">Confident</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number stat-unc" id="comp-stat-uncertain">0</span>
+          <span class="stat-label">Uncertain</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-number stat-inc" id="comp-stat-incorrect">0</span>
+          <span class="stat-label">Incorrect</span>
+        </div>
+      </div>
+
+      <!-- Unresolved Cards Warning if any -->
+      <div id="completion-unresolved-box" class="unresolved-box hidden">
+        <div class="unresolved-header">
+          <span>⚠️ Unresolved Weak Cards (<span id="comp-unresolved-count">0</span> remaining)</span>
+        </div>
+        <p class="unresolved-desc">These cards still need reinforcement before the exam. You can use "Review Weak Cards" next.</p>
+      </div>
+
+      <div class="completion-footer">
+        <p class="timer-countdown-note" id="comp-timer-note">Reviewing results... (3s minimum hold)</p>
+        <button id="btn-completion-done" class="btn btn-primary btn-lg action-btn-wide" disabled>
+          Return to Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Card Management Modal -->
+  <div id="modal-card-manager" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-dialog modal-lg glass-panel">
+      <div class="modal-header">
+        <div class="modal-header-titles">
+          <h3 class="modal-title">Card Deck & Editor</h3>
+          <p id="manager-exam-subtitle" class="modal-subtitle">Exams / Cards</p>
+        </div>
+        <button class="modal-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="deck-manager-body">
+        <div class="deck-toolbar">
+          <input type="text" id="deck-search-input" class="form-input search-input" placeholder="Search cards by question or answer...">
+          <button id="btn-deck-add-card" class="btn btn-primary btn-sm">+ Add Single Card</button>
+        </div>
+
+        <div class="deck-cards-list" id="deck-cards-table-container">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Single Card Edit Modal -->
+  <div id="modal-card-edit" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-dialog glass-panel">
+      <div class="modal-header">
+        <h3 id="card-edit-modal-title" class="modal-title">Edit Card</h3>
+        <button class="modal-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+      <form id="form-card-edit" class="modal-form">
+        <input type="hidden" id="edit-card-id" value="">
+        <input type="hidden" id="edit-card-exam-id" value="">
+
+        <div class="form-group">
+          <label for="edit-card-type" class="form-label">Card Type</label>
+          <select id="edit-card-type" class="form-select">
+            <option value="basic">Basic Front / Back</option>
+            <option value="cloze">Cloze Deletion ({{c1::answer}})</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-card-front" class="form-label">Front (or Cloze Text) *</label>
+          <textarea id="edit-card-front" class="form-textarea" rows="3" required></textarea>
+          <span class="form-hint" id="hint-cloze-syntax">Use {{c1::answer}} or {{c1::answer::hint}} for cloze items.</span>
+        </div>
+
+        <div class="form-group" id="group-edit-back">
+          <label for="edit-card-back" class="form-label">Back (Answer) *</label>
+          <textarea id="edit-card-back" class="form-textarea" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-card-supplementary" class="form-label">Supplementary Notes (Optional)</label>
+          <input type="text" id="edit-card-supplementary" class="form-input" placeholder="Additional hints, examples, or mnemonic">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Card</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 7. Data Backup & Restore Modal -->
+  <div id="modal-backup" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-dialog glass-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">Data Backup & Restore</h3>
+        <button class="modal-close" data-close-modal aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="backup-section">
+          <h4>Export Full Backup</h4>
+          <p class="section-desc">Download a complete snapshot of all exams, cards, learning progress, and study session history in JSON format.</p>
+          <button id="btn-export-backup" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download Backup (.json)</span>
+          </button>
+        </div>
+
+        <hr class="card-divider">
+
+        <div class="backup-section">
+          <h4>Restore from Backup</h4>
+          <p class="section-desc">Upload a previously saved LastLap JSON backup file. Data will be rigorously validated before restoration.</p>
+          
+          <div class="restore-drop-box">
+            <input type="file" id="backup-file-input" class="file-input-hidden" accept=".json">
+            <button type="button" id="btn-choose-backup-file" class="btn btn-secondary btn-sm">Select Backup File</button>
+            <span id="backup-selected-name" class="backup-file-name">No file selected</span>
+          </div>
+
+          <div id="backup-validate-summary" class="backup-summary-box hidden"></div>
+
+          <div class="restore-options-box hidden" id="restore-options">
+            <label class="radio-label">
+              <input type="radio" name="restore-mode" value="replace" checked>
+              <span><strong>Replace current database</strong> (Recommended for full restore)</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="restore-mode" value="merge">
+              <span><strong>Merge with current data</strong></span>
+            </label>
+            <button type="button" id="btn-execute-restore" class="btn btn-accent btn-sm">Confirm & Restore</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close-modal>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts in dependency order -->
+  <script src="db.js"></script>
+  <script src="cards.js"></script>
+  <script src="schedule.js"></script>
+  <script src="study.js"></script>
+  <script src="import.js"></script>
+  <script src="backup.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
