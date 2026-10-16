@@ -329,7 +329,13 @@
           </div>
           <span id="study-progress-text" class="study-count">1 / 50</span>
         </div>
-        <button id="btn-study-exit" class="icon-btn-subtle" title="Exit Study Session" aria-label="Exit Session">&times;</button>
+        <div class="study-top-actions">
+          <button id="btn-study-undo" class="btn btn-secondary btn-sm study-undo-btn" title="Undo last rating (Z / U)" disabled>
+            <span>↩ Undo</span>
+            <span class="kbd-hint-inline">[Z]</span>
+          </button>
+          <button id="btn-study-exit" class="icon-btn-subtle" title="Pause & Exit Session" aria-label="Pause and Exit Session">&times;</button>
+        </div>
       </div>
 
       <!-- Flashcard Interactive Area -->
@@ -392,7 +398,7 @@
 
       <!-- Keyboard shortcuts legend for mobile & desktop -->
       <div class="study-footer-hints">
-        <span>Keyboard shortcuts: Space to reveal answer, 1/2/3 to rate result, Esc to exit</span>
+        <span>Shortcuts: <strong>Space</strong> Reveal | <strong>1/2/3</strong> Rate | <strong>Z / U</strong> Undo | <strong>Esc</strong> Pause & Exit</span>
       </div>
     </div>
   </div>

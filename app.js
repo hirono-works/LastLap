@@ -424,6 +424,9 @@ class App {
         countdownText = `${daysLeft} days left (Urgent!)`;
       }
 
+      const pausedSession = this.getPausedSession(exam.id);
+      const hasPaused = pausedSession && Array.isArray(pausedSession.queue) && pausedSession.currentIndex < pausedSession.queue.length;
+
       const cardEl = document.createElement('div');
       cardEl.className = 'exam-card glass-panel';
       cardEl.innerHTML = `
@@ -462,10 +465,33 @@ class App {
           </button>
         </div>
 
+        ${hasPaused ? `
+          <div class="exam-paused-banner">
+            <div class="paused-banner-left">
+              <span class="paused-icon">⏸️</span>
+              <div>
+                <div class="paused-title">Paused Session in Progress</div>
+                <div class="paused-subtitle">Card ${pausedSession.currentIndex + 1} of ${pausedSession.queue.length} (${Math.round((pausedSession.currentIndex / pausedSession.queue.length) * 100)}%) • ${pausedSession.mode === SessionMode.REVIEW_WEAK ? 'Weak Cards' : (pausedSession.mode === SessionMode.REVIEW_ALL ? 'Review All' : `Phase ${pausedSession.phase}`)}</div>
+              </div>
+            </div>
+            <button class="link-btn link-btn-danger btn-discard-session" data-exam-id="${exam.id}" title="Discard paused session">Discard</button>
+          </div>
+        ` : ''}
+
         <div class="exam-actions-row">
           ${totalCards === 0 ? `
             <button class="btn btn-primary btn-import-materials action-btn-wide" data-exam-id="${exam.id}">
               📥 Import Study Materials
+            </button>
+          ` : hasPaused ? `
+            <button class="btn btn-primary btn-resume-study" data-exam-id="${exam.id}">
+              ▶️ Resume Study (Card ${pausedSession.currentIndex + 1}/${pausedSession.queue.length})
+            </button>
+            <button class="btn btn-outline btn-study-phase" data-exam-id="${exam.id}">
+              ↺ Restart Session
+            </button>
+            <button class="btn btn-secondary btn-review-weak" data-exam-id="${exam.id}">
+              🎯 Review Weak (${weakCount})
             </button>
           ` : `
             <button class="btn btn-primary btn-study-phase" data-exam-id="${exam.id}">
@@ -498,11 +524,40 @@ class App {
       const reimportBtn = cardEl.querySelector('.btn-reimport');
       if (reimportBtn) reimportBtn.addEventListener('click', () => this.openImportModal(exam));
 
+      const resumeBtn = cardEl.querySelector('.btn-resume-study');
+      if (resumeBtn) resumeBtn.addEventListener('click', () => this.resumeStudySession(exam));
+
+      const discardBtn = cardEl.querySelector('.btn-discard-session');
+      if (discardBtn) {
+        discardBtn.addEventListener('click', () => {
+          if (confirm('Discard paused session progress and start fresh next time?')) {
+            this.clearPausedSession(exam.id);
+            this.reloadDashboard();
+            this.showToast('Paused session discarded.', 'info');
+          }
+        });
+      }
+
       const studyPhaseBtn = cardEl.querySelector('.btn-study-phase');
-      if (studyPhaseBtn) studyPhaseBtn.addEventListener('click', () => this.startStudySession(exam, SessionMode.PHASE));
+      if (studyPhaseBtn) {
+        studyPhaseBtn.addEventListener('click', () => {
+          if (hasPaused) {
+            this.clearPausedSession(exam.id);
+          }
+          this.startStudySession(exam, SessionMode.PHASE);
+        });
+      }
 
       const reviewWeakBtn = cardEl.querySelector('.btn-review-weak');
-      if (reviewWeakBtn) reviewWeakBtn.addEventListener('click', () => this.startStudySession(exam, SessionMode.REVIEW_WEAK));
+      if (reviewWeakBtn) {
+        reviewWeakBtn.addEventListener('click', () => {
+          if (hasPaused && pausedSession.mode === SessionMode.REVIEW_WEAK) {
+            this.resumeStudySession(exam);
+          } else {
+            this.startStudySession(exam, SessionMode.REVIEW_WEAK);
+          }
+        });
+      }
 
       const reviewAllBtn = cardEl.querySelector('.btn-review-all');
       if (reviewAllBtn) reviewAllBtn.addEventListener('click', () => this.startStudySession(exam, SessionMode.REVIEW_ALL));
@@ -978,6 +1033,39 @@ class App {
   }
 
   // ================= 6 & 7. STUDY SESSIONS & REVIEW ACTIONS =================
+  getPausedSession(examId) {
+    try {
+      const raw = localStorage.getItem(`lastlap_paused_session_${examId}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.queue) && typeof parsed.currentIndex === 'number') {
+        return parsed;
+      }
+      return null;
+    } catch (e) {
+      console.error('Failed to get paused session:', e);
+      return null;
+    }
+  }
+
+  savePausedSession(session) {
+    if (!session || !session.exam) return;
+    try {
+      const state = session.exportState();
+      localStorage.setItem(`lastlap_paused_session_${session.exam.id}`, JSON.stringify(state));
+    } catch (e) {
+      console.error('Failed to save paused session to localStorage:', e);
+    }
+  }
+
+  clearPausedSession(examId) {
+    try {
+      localStorage.removeItem(`lastlap_paused_session_${examId}`);
+    } catch (e) {
+      console.error('Failed to clear paused session:', e);
+    }
+  }
+
   bindStudyEvents() {
     // Reveal Answer
     document.getElementById('btn-reveal-answer').addEventListener('click', () => this.revealCurrentCardAnswer());
@@ -990,11 +1078,28 @@ class App {
       });
     });
 
-    // Exit Study View
-    document.getElementById('btn-study-exit').addEventListener('click', () => {
-      const exitConfirm = confirm('Are you sure you want to exit? Your progress so far will be saved.');
+    // Undo Button
+    const undoBtn = document.getElementById('btn-study-undo');
+    if (undoBtn) {
+      undoBtn.addEventListener('click', () => this.undoStudyRating());
+    }
+
+    // Exit Study View with Pause and Save
+    document.getElementById('btn-study-exit').addEventListener('click', async () => {
+      const exitConfirm = confirm('Pause and exit this session? Your progress will be saved so you can resume where you left off.');
       if (exitConfirm) {
-        this.finishStudySession(true);
+        if (this.currentStudySession) {
+          this.savePausedSession(this.currentStudySession);
+          try {
+            await db.saveCardProgressBulk(this.currentStudySession.getUpdatedProgressList());
+          } catch (err) {
+            console.error('Failed to persist progress on pause:', err);
+          }
+        }
+        document.getElementById('study-view').classList.add('hidden');
+        this.currentStudySession = null;
+        this.showToast('Session paused. You can resume anytime from the dashboard!', 'info');
+        this.reloadDashboard();
       }
     });
 
@@ -1002,6 +1107,13 @@ class App {
     window.addEventListener('keydown', (e) => {
       const studyView = document.getElementById('study-view');
       if (studyView.classList.contains('hidden')) return;
+
+      // Undo shortcut: Z or U (or Ctrl+Z / Meta+Z)
+      if ((e.key === 'z' || e.key === 'Z' || e.key === 'u' || e.key === 'U') && !e.shiftKey) {
+        e.preventDefault();
+        this.undoStudyRating();
+        return;
+      }
 
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
@@ -1035,7 +1147,16 @@ class App {
     });
   }
 
-  async startStudySession(exam, mode = SessionMode.PHASE) {
+  async resumeStudySession(exam) {
+    const paused = this.getPausedSession(exam.id);
+    if (!paused) {
+      this.showToast('No paused session found.', 'warning');
+      return;
+    }
+    await this.startStudySession(exam, paused.mode, paused);
+  }
+
+  async startStudySession(exam, mode = SessionMode.PHASE, resumeState = null) {
     const cards = await db.getCardsByExam(exam.id);
     if (cards.length === 0) {
       this.showToast('Please import study materials before starting.', 'warning');
@@ -1045,8 +1166,8 @@ class App {
 
     const progressList = await db.getProgressByExam(exam.id);
 
-    // Initialize Study Engine
-    this.currentStudySession = new StudySessionEngine(exam, cards, progressList, mode);
+    // Initialize Study Engine with resumeState if resuming
+    this.currentStudySession = new StudySessionEngine(exam, cards, progressList, mode, resumeState);
 
     if (this.currentStudySession.queue.length === 0) {
       if (mode === SessionMode.REVIEW_WEAK) {
@@ -1057,6 +1178,9 @@ class App {
         return;
       }
     }
+
+    // Auto-save active session state
+    this.savePausedSession(this.currentStudySession);
 
     // Set UI Meta
     const studyOverlay = document.getElementById('study-view');
@@ -1078,10 +1202,41 @@ class App {
 
     studyOverlay.classList.remove('hidden');
     this.renderCurrentStudyCard();
+
+    if (resumeState) {
+      this.showToast(`Resumed session at card ${this.currentStudySession.currentIndex + 1} of ${this.currentStudySession.queue.length}.`, 'info');
+    }
+  }
+
+  /**
+   * Updates the phase badge in the study overlay to reflect the current phase.
+   */
+  updateStudyPhaseBadge() {
+    const phaseBadge = document.getElementById('study-phase-badge');
+    if (!this.currentStudySession) return;
+    const session = this.currentStudySession;
+    if (session.mode === SessionMode.REVIEW_ALL) {
+      phaseBadge.textContent = 'Review All';
+    } else if (session.mode === SessionMode.REVIEW_WEAK) {
+      phaseBadge.textContent = 'Weak Cards Target';
+    } else {
+      const names = {
+        1: 'Phase 1: Diagnostic',
+        2: 'Phase 2: Reinforcement',
+        3: 'Phase 3: Final 6-Stage'
+      };
+      phaseBadge.textContent = names[session.phase] || `Phase ${session.phase}`;
+    }
   }
 
   renderCurrentStudyCard() {
     if (!this.currentStudySession) return;
+
+    // Check if a phase just completed and auto-transition is needed
+    if (this.currentStudySession.phaseJustCompleted) {
+      this.handlePhaseAutoTransition();
+      return;
+    }
 
     if (this.currentStudySession.isComplete()) {
       this.finishStudySession(false);
@@ -1094,14 +1249,15 @@ class App {
       return;
     }
 
+    // Update Undo button state
+    const undoBtn = document.getElementById('btn-study-undo');
+    if (undoBtn) {
+      undoBtn.disabled = !this.currentStudySession.canUndo();
+    }
+
     const stats = this.currentStudySession.getProgressStats();
     document.getElementById('study-progress-fill').style.width = `${stats.percent}%`;
     document.getElementById('study-progress-text').textContent = `${stats.current} / ${stats.total}`;
-
-    // Controls reset
-    document.getElementById('study-reveal-controls').classList.remove('hidden');
-    document.getElementById('study-rating-controls').classList.add('hidden');
-    document.getElementById('study-card-back-wrapper').classList.add('hidden');
 
     const cardTypeBadge = document.getElementById('study-card-type');
     const frontTextEl = document.getElementById('study-front-text');
@@ -1129,6 +1285,20 @@ class App {
         .join('');
       suppPostEl.innerHTML = suppHtml;
     }
+
+    // Toggle reveal / rating controls depending on whether answer is revealed
+    if (this.currentStudySession.isAnswerRevealed) {
+      document.getElementById('study-card-back-wrapper').classList.remove('hidden');
+      document.getElementById('study-reveal-controls').classList.add('hidden');
+      document.getElementById('study-rating-controls').classList.remove('hidden');
+      if (card.supplementaryFields && card.supplementaryFields.length > 0) {
+        suppPostEl.classList.remove('hidden');
+      }
+    } else {
+      document.getElementById('study-reveal-controls').classList.remove('hidden');
+      document.getElementById('study-rating-controls').classList.add('hidden');
+      document.getElementById('study-card-back-wrapper').classList.add('hidden');
+    }
   }
 
   revealCurrentCardAnswer() {
@@ -1148,7 +1318,82 @@ class App {
   submitStudyRating(result) {
     if (!this.currentStudySession) return;
 
-    this.currentStudySession.submitResult(result);
+    const outcome = this.currentStudySession.submitResult(result);
+    // Auto save on every answer
+    this.savePausedSession(this.currentStudySession);
+    this.renderCurrentStudyCard();
+  }
+
+  undoStudyRating() {
+    if (!this.currentStudySession || !this.currentStudySession.canUndo()) return;
+
+    const res = this.currentStudySession.undo();
+    if (res) {
+      this.savePausedSession(this.currentStudySession);
+      this.renderCurrentStudyCard();
+      this.showToast('Undid previous card rating. Select your answer again.', 'info');
+    }
+  }
+
+  /**
+   * Handles automatic transition between phases (Phase 1→2, Phase 2→3).
+   * Shows a brief transition screen, saves progress, and continues.
+   */
+  async handlePhaseAutoTransition() {
+    const session = this.currentStudySession;
+    if (!session) return;
+
+    const completedPhase = session.completedPhase;
+    const phaseNames = {
+      1: 'Phase 1: Diagnostic',
+      2: 'Phase 2: Reinforcement',
+      3: 'Phase 3: Final 6-Stage'
+    };
+    const completedName = phaseNames[completedPhase] || `Phase ${completedPhase}`;
+
+    // Save progress to DB before transitioning
+    try {
+      await db.saveCardProgressBulk(session.getUpdatedProgressList());
+    } catch (err) {
+      console.error('Failed to save progress during phase transition:', err);
+    }
+
+    // Perform engine-level transition
+    const transitioned = session.transitionToNextPhase();
+
+    if (!transitioned) {
+      // Phase 3 completed — end the session
+      this.finishStudySession(false);
+      return;
+    }
+
+    // Save new exam phase to DB
+    try {
+      await db.saveExam(session.exam);
+    } catch (err) {
+      console.error('Failed to save exam phase:', err);
+    }
+
+    const nextName = phaseNames[session.phase] || `Phase ${session.phase}`;
+
+    // Update phase badge
+    this.updateStudyPhaseBadge();
+
+    // Auto-save the new state
+    this.savePausedSession(session);
+
+    // Check if the new phase has any cards
+    if (session.queue.length === 0) {
+      // No cards for this phase — try transitioning again
+      session.phaseJustCompleted = true;
+      session.completedPhase = session.phase;
+      this.showToast(`${nextName} has no cards. Advancing...`, 'info');
+      setTimeout(() => this.renderCurrentStudyCard(), 500);
+      return;
+    }
+
+    // Show transition toast and continue
+    this.showToast(`${completedName} complete! Moving to ${nextName} (${session.queue.length} cards).`, 'success');
     this.renderCurrentStudyCard();
   }
 
@@ -1156,6 +1401,11 @@ class App {
   async finishStudySession(interrupted = false) {
     const session = this.currentStudySession;
     if (!session) return;
+
+    // Clear paused session from localStorage when completing normally
+    if (!interrupted) {
+      this.clearPausedSession(session.exam.id);
+    }
 
     // Hide study screen
     document.getElementById('study-view').classList.add('hidden');
